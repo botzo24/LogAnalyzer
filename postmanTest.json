@@ -1,0 +1,80 @@
+{
+  "info": {
+    "name": "Log Analyzer API Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Create Log - ERROR",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"service\": \"payment-service\",\n    \"level\": \"ERROR\",\n    \"message\": \"Database connection timeout in production cluster\"\n}"
+        },
+        "url": "http://localhost:8080/api/logs"
+      }
+    },
+    {
+      "name": "Create Log - INFO",
+      "request": {
+        "method": "POST",
+        "header": [{"key": "Content-Type", "value": "application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"service\": \"auth-service\",\n    \"level\": \"INFO\",\n    \"message\": \"User ID 4502 successfully logged in\"\n}"
+        },
+        "url": "http://localhost:8080/api/logs"
+      }
+    },
+    {
+      "name": "Search by Keyword (Database)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "logs", "search"],
+          "query": [{"key": "keyword", "value": "database"}]
+        }
+      }
+    },
+    {
+      "name": "Filter by Level (ERROR)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8080/api/logs/level/ERROR"
+      }
+    },
+    {
+      "name": "View Recent Logs (Last 24h)",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8080/api/logs/recent"
+      }
+    },
+    {
+      "name": "Get Latest 10 Logs",
+      "request": {
+        "method": "GET",
+        "url": "http://localhost:8080/api/logs/latest"
+      }
+    },
+    {
+      "name": "Filter by Date Range",
+      "request": {
+        "method": "GET",
+        "url": {
+          "host": ["localhost"],
+          "port": "8080",
+          "path": ["api", "logs", "date"],
+          "query": [
+            {"key": "start", "value": "2026-01-12T00:00:00Z"},
+            {"key": "end", "value": "2026-01-13T23:59:59Z"}
+          ]
+        }
+      }
+    }
+  ]
+}
