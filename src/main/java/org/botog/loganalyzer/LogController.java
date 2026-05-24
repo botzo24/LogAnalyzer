@@ -33,25 +33,25 @@ public class LogController {
 
     @GetMapping("/search")
     public List<LogEntry> search(@RequestParam String keyword) {
-        return repository.findByMessageContaining(keyword);
+        return repository.findByMessageContaining(keyword, PageRequest.of(0, 500)).getContent();
     }
 
     @GetMapping("/level/{level}")
     public List<LogEntry> byLevel(@PathVariable String level) {
-        return repository.findByLevel(level);
+        return repository.findByLevel(level, PageRequest.of(0, 500)).getContent();
     }
 
     @GetMapping("/date")
     public List<LogEntry> byDate(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant start,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant end) {
-        return repository.findByTimestampBetween(start, end);
+        return repository.findByTimestampBetween(start, end, PageRequest.of(0, 1000)).getContent();
     }
 
     @GetMapping("/recent")
     public List<LogEntry> recent() {
         Instant twentyFourHoursAgo = Instant.now().minus(24, ChronoUnit.HOURS);
-        return repository.findByTimestampBetween(twentyFourHoursAgo, Instant.now());
+        return repository.findByTimestampBetween(twentyFourHoursAgo, Instant.now(), PageRequest.of(0, 1000)).getContent();
     }
 
     @GetMapping("/latest")

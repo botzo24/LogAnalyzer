@@ -1,38 +1,113 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  elasticsearch:
-    image: elasticsearch:9.2.2
+  log-analyzer:
+    profiles: ["app"]
+    build: .
+    container_name: log-analyzer
+    depends_on:
+      es-node-1:
+        condition: service_healthy
+      es-node-2:
+        condition: service_healthy
+      es-node-3:
+        condition: service_healthy
     environment:
-      - discovery.type=single-node
+      - SPRING_ELASTICSEARCH_URIS=es-node-1:9200,es-node-2:9200,es-node-3:9200
+    ports:
+      - "8080:8080"
+    networks:
+      - es-network
+
+  es-node-1:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.2
+    container_name: es-node-1
+    environment:
+      - node.name=es-node-1
+      - cluster.name=es-lab-cluster
+      - discovery.seed_hosts=es-node-2,es-node-3
+      - cluster.initial_master_nodes=es-node-1,es-node-2,es-node-3
+      - bootstrap.memory_lock=true
       - xpack.security.enabled=false
-      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ulimits:
       memlock:
         soft: -1
         hard: -1
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'" ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
+    volumes:
+      - es-data-1:/usr/share/elasticsearch/data
     ports:
       - "9200:9200"
+    networks:
+      - es-network
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
 
-
-  kibana:
-    image: kibana:9.2.2
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+  es-node-2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.2
+    container_name: es-node-2
+    environment:
+      - node.name=es-node-2
+      - cluster.name=es-lab-cluster
+      - discovery.seed_hosts=es-node-1,es-node-3
+      - cluster.initial_master_nodes=es-node-1,es-node-2,es-node-3
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data-2:/usr/share/elasticsearch/data
     ports:
-      - "5601:5601"
+      - "9201:9200"
+    networks:
+      - es-network
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
 
-  log-analyzer:
-    build: .
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
+  es-node-3:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.2
+    container_name: es-node-3
+    environment:
+      - node.name=es-node-3
+      - cluster.name=es-lab-cluster
+      - discovery.seed_hosts=es-node-1,es-node-2
+      - cluster.initial_master_nodes=es-node-1,es-node-2,es-node-3
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - es-data-3:/usr/share/elasticsearch/data
     ports:
-      - "8080:8080"
+      - "9202:9200"
+    networks:
+      - es-network
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fs http://localhost:9200/_cluster/health || exit 1" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+networks:
+  es-network:
+    driver: bridge
+
+volumes:
+  es-data-1:
+  es-data-2:
+  es-data-3:
