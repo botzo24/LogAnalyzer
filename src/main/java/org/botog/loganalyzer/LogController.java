@@ -1,7 +1,14 @@
 package org.botog.loganalyzer;
 
+import co.elastic.clients.elasticsearch._types.aggregations.Aggregation;
+import co.elastic.clients.elasticsearch._types.aggregations.StringTermsBucket;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregation;
+import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
+import org.springframework.data.elasticsearch.client.elc.NativeQuery;
+import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
+import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -13,16 +20,20 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/logs")
 public class LogController {
 
     private final LogRepository repository;
+    private final ElasticsearchOperations operations;
 
-    public LogController(LogRepository repository) {
+    public LogController(LogRepository repository, ElasticsearchOperations operations) {
         this.repository = repository;
+        this.operations = operations;
     }
 
     @PostMapping(consumes = "application/json")
@@ -58,6 +69,48 @@ public class LogController {
     public List<LogEntry> latest() {
         return repository.findAll(PageRequest.of(0, 10, Sort.by(Sort.Direction.DESC, "timestamp")))
                 .getContent();
+    }
+
+    @GetMapping("/stats")
+    public LogStats stats() {
+        NativeQuery query = NativeQuery.builder()
+                .withQuery(q -> q.matchAll(m -> m))
+                .withAggregation("by_level",
+                        Aggregation.of(a -> a.terms(t -> t.field("level").size(50))))
+                .withAggregation("by_service",
+                        Aggregation.of(a -> a.terms(t -> t.field("service").size(200))))
+                .withMaxResults(0)
+                .build();
+
+        SearchHits<LogEntry> hits = operations.search(query, LogEntry.class);
+        ElasticsearchAggregations aggregations = (ElasticsearchAggregations) hits.getAggregations();
+
+        Map<String, Long> byLevel = bucketsToMap(aggregations, "by_level");
+        Map<String, Long> byService = bucketsToMap(aggregations, "by_service");
+
+        long total = hits.getTotalHits();
+        long errors = byLevel.entrySet().stream()
+                .filter(e -> e.getKey().equalsIgnoreCase("ERROR"))
+                .mapToLong(Map.Entry::getValue)
+                .sum();
+        double errorRate = total == 0 ? 0.0 : (double) errors / total;
+
+        return new LogStats(total, byLevel, byService, errorRate);
+    }
+
+    private Map<String, Long> bucketsToMap(ElasticsearchAggregations aggregations, String name) {
+        Map<String, Long> result = new LinkedHashMap<>();
+        if (aggregations == null) {
+            return result;
+        }
+        ElasticsearchAggregation aggregation = aggregations.get(name);
+        if (aggregation == null) {
+            return result;
+        }
+        for (StringTermsBucket bucket : aggregation.aggregation().getAggregate().sterms().buckets().array()) {
+            result.put(bucket.key().stringValue(), bucket.docCount());
+        }
+        return result;
     }
 
     @DeleteMapping("/{id}")

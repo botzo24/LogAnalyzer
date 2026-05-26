@@ -24,6 +24,8 @@ The system supports the following core operations:
 
     - Quick Views: Retrieve the latest 10 logs or all logs from the last 24 hours.
 
+    - Statistics: Summarize indexed logs via `GET /api/logs/stats` — total count, breakdown by level and service, and the overall error rate (computed with Elasticsearch terms aggregations).
+
     - Maintenance: Delete log entries by ID.
 
 3. REST API & Swagger Documentation
@@ -62,3 +64,14 @@ Data is structured using strict typing to ensure efficient querying:
    Postman: A complete collection is available to test all endpoints.
 
    Automation: Includes a Python script to generate thousands of realistic dummy logs for load testing.
+
+   Benchmarks: `scripts/benchmark.js` is a [k6](https://grafana.com/docs/k6/latest/) load test reporting throughput and p50/p95/p99 latency per endpoint. See `scripts/BENCHMARKS.md` for the full step-by-step commands. Quick start (live app + ES required):
+
+   ```bash
+   cd scripts
+   k6 run -e SEED=true benchmark.js        # seed sample logs, then run the query mix
+   k6 run -e MODE=ingest benchmark.js      # bulk-upload throughput only
+   k6 run -e MODE=all -e SEED=true benchmark.js
+   ```
+
+   Env vars: `MODE` (`queries`|`ingest`|`all`, default `queries`), `SEED` (`true` to upload `large_test_logs.txt` once first), `BASE_URL` (default `http://localhost:8080`).

@@ -103,6 +103,29 @@ services:
       retries: 30
       start_period: 30s
 
+  kibana:
+    image: docker.elastic.co/kibana/kibana:9.2.2
+    container_name: kibana
+    depends_on:
+      es-node-1:
+        condition: service_healthy
+      es-node-2:
+        condition: service_healthy
+      es-node-3:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=["http://es-node-1:9200","http://es-node-2:9200","http://es-node-3:9200"]
+    ports:
+      - "5601:5601"
+    networks:
+      - es-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:5601/api/status || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
 networks:
   es-network:
     driver: bridge
